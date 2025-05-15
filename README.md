@@ -1,67 +1,106 @@
-# VessleDistancing
-
-Route with two specific point(way point) near Kalø Vig in Denmark.
-
-I'm approximating(more like eyeballing) the waypoints to:
-Waypoint 1: (56.258029, 10.439546)
-Waypoint 2: (56.045770, 10.673637)
-![img.png](img.png)
 
 
-Just did it this way because I did not know how to open the GPX file on linux, tried with my phone and and got the approximate coordinates.
-I have read that the GPX file should include names, but I'm ignoring that now.
+## Introduction
+This project finds the closest vessel (ship) to each of two waypoints using Java. 
 
-Because I'm a visual person, I had to visualise things so it would help me understand better.
+## Problem Description
+The task is to calculate the distance from each of two waypoints (from a GPX file, `Route.gpx`) to a list of vessels and identify the closest vessel for each waypoint. 
+- "Waypoint WP1: Closest vessel is [ship name] with distance [distance] km"
+- "Waypoint WP2: Closest vessel is [ship name] with distance [distance] km"
+
+### Given Data
+- **Waypoints** (from `Route.gpx`):
+   - **Initial Approximation** (I did not know how to extract the waypoints or names, ):
+      - WP1: (56.258029, 10.439546)
+      - WP2: (56.045770, 10.673637)
+   - **Accurate Coordinates** (later extracted by viewing `Route.gpx` ):
+      - WP1: (56.255625, 10.442260)
+      - WP2: (56.054509, 10.676264)
+- **Vessels** (from `Vessels.xml`):
+   - MERETE MAERSK: (56.256463, 10.384986)
+   - KANPUR: (56.112223, 10.407222)
+   - RMS TITANIC: (56.013356, 10.365090)
+   - BLACK PEARL: (56.069476, 10.591058)
+   - BOATY MCBOATFACE: (56.177454, 10.913075)
+
+## Approach
+### Understanding the Problem
+To solve this, I needed to:
+1. Calculate distances from each waypoint to all vessels.
+2. Identify the vessel with the shortest distance for each waypoint.
+3. Output the results in kilometers, rounded to two decimal places.
+
+As a visual human, I have used https://gpx.studio/ to try to visualise the vessels and the waypoints
 ![img_2.png](img_2.png)
 
-# My understanding of the task:
-1. _we have 2 waypoints, their coordinates and names (although I did not get the names)_
-   Waypoint 1: (56.258029, 10.439546)
-   Waypoint 2: (56.045770, 10.673637)
+### Research and Key Decisions
+1. **Distance Calculation**:
+   - Researched using online resources and AI tools (e.g., ChatGPT) and chose the Haversine formula to calculate the great-circle distance on Earth’s curved surface.
+   - Haversine converts latitude/longitude to radians, uses sine/cosine for curvature, and multiplies by Earth’s radius (6,371 km).
+   - Considered Vincenty’s formula (more accurate, uses Earth’s ellipsoid shape) but decided against it because:
+      - It’s slower due to iterative calculations.
+      - The waypoints and vessels are close (within 30 km), so Haversine’s accuracy (error < 100 meters) is enough.
+      - Simplicity and readability are prioritized, and Haversine is easier to understand.
+2. **Graph Theory**:
+   - Modeled the problem as a graph:
+      - **Nodes**: Waypoints (WP1, WP2) and vessels (5 ships).
+      - **Edges**: Connections between each waypoint and every vessel.
+      - **Weights**: Distances calculated by Haversine.
+   - This visualization helped me structure the solution: loop through waypoints, compute distances to vessels, and select the minimum distance.
+3. **Performance Optimization**:
+   - Implemented a 0.5-degree bounding box heuristic to skip vessels far from a waypoint (e.g., >55 km north/south or ~30 km east/west).
+   - Checks if a vessel’s latitude/longitude is within ±0.5° of the waypoint’s before calculating the Haversine distance.
+   - With 5 vessels, all are within the box, but this heuristic ensures scalability for larger datasets (e.g., 1,000 vessels).
+4. **Waypoint Handling**:
+   - Initially struggled to open `Route.gpx`, so I approximated coordinates by viewing the file on my phone, then on an gpx studio.
+   - Hardcoded both sets of coordinates in the code to test results, as I lacked time to learn GPX parsing.
+5. **Programming Language**:
+   - Chose Java because :
+      - Easier for me and lower learning curve and I can focus on understanding the problem rather than dealing with new syntax and so on.
+   - Avoided C++ due to:
+      - Steeper learning curve (e.g., manual memory management, new syntax, etc).
+      - Need for libraries like pugixml for XML parsing.
+      - Time constraints and prioritization of understanding over performance.
+6. **Libraries**:
+   - Researched libraries like GeoTools, JTS Topology Suite, and KD-tree for geospatial calculations, and gpx-parser for GPX files.
+   - Decided against libraries because:
+      - Limited time to learn and integrate them.
+      - Small problem size (2 waypoints, 5 vessels) didn’t require advanced features.
+      - Java’s built-in XML parser and custom Haversine were sufficient and simpler.
 
-2. _We have a list of vessels and their coordinates_
-   Vessel[name=MERETE MAERSK, latitude=56.25646346665703, longitude=10.384985569490757]
-   Vessel[name=KANPUR, latitude=56.112222867603656, longitude=10.407221794383409]
-   Vessel[name=RMS TITANIC, latitude=56.01335602421017, longitude=10.365089999849966]
-   Vessel[name=BLACK PEARL, latitude=56.06947605204449, longitude=10.59105827202736]
-   Vessel[name=BOATY MCBOATFACE, latitude=56.17745369462793, longitude=10.91307527877345]
-
-_The task is to find which  ship is closest to each waypoint by calculating the distance from each of the waypoint to each of the vessels._
-So in the end I should log to the console something like:
-“Waypoint WP1: Closest ship is [ship name] with distance [distance] km”
-“Waypoint WP2: Closest ship is [ship name] with distance [distance] km”
-
-After a bit of googling and ChatGPT, it seems I need:
-1. to use Haversine fomular to calculate the distance.
-   The reason being the earth isn't flat so we need to find the curved distance known as great-circle distance.
-2. Convert the lat and long from degrees to radians (because the formular uses radians)
-   This formular examines the distance in latitude and longitude, then uses sine and cosine to account for earth's curvature
-3. Multiply all that by Earth's Radius which is 6,378 km (dunno what measuring tape managed that but cool)
-4. Will use graph theory to "map" out the idea that nodes are waypoints and ships
-   Edges are the connections between waypoints and shops
-   Distances are weights that represetn how long connection is
-
-What I'm not using
-Not using Vincenty's formular even if more accurate as it slower since it involves iterative calculations. 
-It is also unnecessary since the distances are so close to each other and not over thousands of kilometers. 
-Also keeping in mind that the use case does not demand high precision
-This was also much simpler for me to understand in the small time frame I gave myself
-
-Did not consider using libraries for the calculation or parsing as did not have time to investigate this at all
-Internet search showed I could use GeoTools, KD-tree or JTS lib in java.
-Also using a parser for the GPX file instead of how I manually did it and hardcoded the values.
-Did not implement this in c++ as it would be a much higher learning curve for the time restraint
-Java was easier so  I could just focus on understanding the problem and trying to work with such a 
-new concept to me.
-
-
-![img_3.png](img_3.png)
-
-Ok after a while I found how to get the coordinate
-56.255625, 10.442260
-56.054509, 10.676264
+## Solution
+The solution is implemented in Java with an object-oriented design for clarity and maintainability:
+- **Classes**:
+   - `Point`: Stores latitude and longitude coordinates.
+   - `Vessel`: Represents a ship with a name and location.
+   - `Waypoint`: Represents a waypoint with a name and location.
+   - `DistanceCalculator`: Computes Haversine distances and applies the 0.5-degree heuristic.
+   - `VesselCollection`: Parses `Vessels.xml` using Java’s built-in XML parser.
+   - `RouteAnalyzer`: Manages waypoints, finds the closest vessel for each, and prints results.
 
 
-Result
+
+## Results
+
+   - WP1: (56.255625, 10.442260)
+   - WP2: (56.054509, 10.676264)
+   - Output:
+     ```
+     Waypoint WP1: Closest vessel is MERETE MAERSK with distance 3.54 km
+     Waypoint WP2: Closest vessel is BLACK PEARL with distance 5.55 km
+     ```
+### Visual Results
 ![img_4.png](img_4.png)
 ![img_5.png](img_5.png)
+
+## Reflections
+### What I Learned
+- Haversine formula
+- Calculating distances apparently require factoring in earth's curvature (not something I really ever ha the need to think about)
+- Improvising on many things just to get the ball rolling; Things like opening the file, approximating the coordinates, etc.
+- Deciding what  trade-offs to make (e.g., no libraries, Java over C++) to balance time constraints, simplicity, and functionality.
+
+## Conclusion
+Interesting and very new challenge for me. The first time reading the problem, it made very little sense and I was not familiar with the file format.
+Overall it was a valuable learning experience.
+
